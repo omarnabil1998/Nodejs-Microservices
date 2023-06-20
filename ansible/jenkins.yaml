@@ -1,0 +1,42 @@
+---
+- name: Download and install Jenkins
+  hosts: aws_ec2
+  become: true
+  tasks:
+    - name: Add the Jenkins repo
+      get_url:
+        url: https://pkg.jenkins.io/redhat-stable/jenkins.repo
+        dest: /etc/yum.repos.d/jenkins.repo
+
+    - name: Import Jenkins key 
+      rpm_key:    
+        key: https://pkg.jenkins.io/redhat-stable/jenkins.io-2023.key
+        state: present
+
+    - name: Install Java11
+      command: amazon-linux-extras install java-openjdk11 -y
+      args:
+        creates: /sbin/jenkins
+
+    - name: Install Jenkins and updating yum
+      vars:
+        ansible_python_interpreter: /usr/bin/python
+      yum: 
+        name: jenkins
+        update_cache: yes
+        state: present
+
+    - name: Make sure Jenkins is running
+      systemd:
+        daemon_reload: true
+        name: jenkins
+        state: started
+        enabled: true
+
+    - name: Checking jenkins status
+      shell: ps aux | grep jenkins
+      register: app_status
+    - debug: msg={{app_status.stdout_lines}}
+        
+       
+

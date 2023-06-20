@@ -1,0 +1,71 @@
+---
+- name: wait for ssh port to be available
+  hosts: aws_ec2
+  tasks:
+    - name: ensure ssh port is open
+      wait_for:
+        port: 22
+        host: '{{ (ansible_ssh_host|default(ansible_host))|default(inventory_hostname) }}'
+        search_regex: OpenSSH
+        delay: 10
+        timeout: 100
+      vars:
+        ansible_connection: local
+
+- name: Install python3, docker, docker compose
+  hosts: aws_ec2
+  become: true
+  tasks:
+    - name: install python and docker using yum
+      vars:
+        ansible_python_interpreter: /usr/bin/python
+      yum:
+        name:
+          - python3
+          - docker
+        update_cache: yes
+        state: present
+
+    - name: installing docker compose
+      get_url:
+        url: https://github.com/docker/compose/releases/download/1.29.2/docker-compose-{{lookup('pipe', 'uname -s')}}-{{lookup('pipe', 'uname -m')}}
+        dest: /usr/local/bin/docker-compose
+        mode: +x
+    
+    - name: install docker, docker compose python packages
+      pip:
+        name:
+          - docker
+          - docker-compose
+          - urllib3==1.26.6
+
+    - name: start docker daemon
+      systemd:
+        name: docker
+        state: started
+    
+- name: add ec2-user to docker group and reset connection
+  hosts: aws_ec2
+  become: true
+  tasks:
+    - name: add ec2-user to docker group
+      user:
+        name: ec2-user
+        groups: docker
+        append: yes
+
+    - name: reset connection
+      meta: reset_connection
+  
+- name: start docker containers
+  hosts: aws_ec2
+  tasks:
+    - name: copy docker compose file
+      copy:
+        src: /home/omar/nodejs-devops/ansible/docker-compose.yaml
+        dest: /home/ec2-user/docker-compose.yaml
+    
+    - name: start docker containers using docker compose
+      docker_compose:
+        project_src: /home/ec2-user
+

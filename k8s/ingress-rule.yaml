@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-rule
+  namespace: default
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: a3e97ec11ce564fffa5adef569de895e-83ba8f6c0152cbce.elb.us-east-1.amazonaws.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: mongo-express-service
+            port:
+              number: 8081
+
